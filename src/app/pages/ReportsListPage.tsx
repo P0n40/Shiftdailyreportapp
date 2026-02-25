@@ -157,7 +157,7 @@ export default function ReportsListPage() {
                         e.stopPropagation();
                         navigate(`/reports/${report.id}/edit`);
                       }}
-                      className="flex-1 bg-sky-500 border-sky-600 text-white hover:bg-sky-600 hover:text-white"
+                      className="flex-1 bg-sky-800 border-sky-600 text-white hover:bg-sky-600 hover:text-white"
                     >
                       Edit
                     </Button>

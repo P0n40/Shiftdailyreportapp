@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
-import { FileText, BarChart3, Plus, ClipboardList, Menu, X, Moon, Sun, Globe } from 'lucide-react';
+import { FileText, BarChart3, Plus, ClipboardList, Menu, X } from 'lucide-react';
 import { Button } from './ui/button';
-import { useTheme } from '../contexts/ThemeContext';
-import { useLanguage } from '../contexts/LanguageContext';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -39,11 +37,8 @@ export function Layout({ children }: LayoutProps) {
     setSidebarOpen(false);
   };
 
-  const { theme, toggleTheme } = useTheme();
-  const { language, toggleLanguage, t } = useLanguage();
-
   return (
-    <div className={`min-h-screen ${theme === 'dark' ? 'bg-[#1f1f1f]' : 'bg-gray-50'} flex`}>
+    <div className="min-h-screen bg-[#1f1f1f] flex">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div

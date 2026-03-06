@@ -751,7 +751,7 @@ export default function ReportEditorPage() {
               onClick={() => navigate('/reports')}
               variant="ghost"
               size="sm"
-              className="text-zinc-400 hover:text-white"
+              className="text-zinc-400 hover:text-orange-500 hover:bg-zinc-800/30 transition-colors"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back

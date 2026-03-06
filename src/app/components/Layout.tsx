@@ -57,7 +57,7 @@ export function Layout({ children }: LayoutProps) {
         <div className="p-6 border-b border-[#3a3a3a]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-orange-600 rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-[#003de6de]">
                 <ClipboardList className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -102,7 +102,7 @@ export function Layout({ children }: LayoutProps) {
           <div className="mt-6">
             <Button
               onClick={() => handleNavigate('/reports/new')}
-              className="w-full bg-orange-600 hover:bg-orange-700 text-white"
+              className="w-full bg-green-600 hover:bg-green-700 text-white"
             >
               <Plus className="w-4 h-4 mr-2" />
               New Report

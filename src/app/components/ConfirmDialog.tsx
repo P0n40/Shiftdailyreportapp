@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { Button } from './ui/button';
+import { Input } from './ui/input';
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -10,6 +11,8 @@ interface ConfirmDialogProps {
   message?: string;
   confirmText?: string;
   cancelText?: string;
+  requirePassword?: boolean;
+  correctPassword?: string;
 }
 
 export function ConfirmDialog({
@@ -20,11 +23,30 @@ export function ConfirmDialog({
   message = 'Are you sure you want to proceed?',
   confirmText = 'Confirm',
   cancelText = 'Cancel',
+  requirePassword = false,
+  correctPassword = '',
 }: ConfirmDialogProps) {
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
   if (!isOpen) return null;
 
   const handleConfirm = () => {
+    if (requirePassword) {
+      if (password !== correctPassword) {
+        setError('Неправильний пароль');
+        return;
+      }
+    }
     onConfirm();
+    setPassword('');
+    setError('');
+    onClose();
+  };
+
+  const handleClose = () => {
+    setPassword('');
+    setError('');
     onClose();
   };
 
@@ -33,7 +55,7 @@ export function ConfirmDialog({
       {/* Backdrop with blur */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
+        onClick={handleClose}
       />
 
       {/* Dialog */}
@@ -53,10 +75,34 @@ export function ConfirmDialog({
           {message}
         </p>
 
+        {/* Password Input */}
+        {requirePassword && (
+          <div className="mb-4">
+            <Input
+              type="password"
+              placeholder="Введіть пароль"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError('');
+              }}
+              className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleConfirm();
+                }
+              }}
+            />
+            {error && (
+              <p className="text-red-500 text-sm mt-2">{error}</p>
+            )}
+          </div>
+        )}
+
         {/* Actions */}
         <div className="flex gap-3">
           <Button
-            onClick={onClose}
+            onClick={handleClose}
             className="flex-1 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white border border-zinc-700"
           >
             {cancelText}

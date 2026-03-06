@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { reportsAPI, Report } from '../lib/api';
 import { Button } from '../components/ui/button';
-import { ArrowLeft, Edit, Printer, Users, ClipboardList, AlertCircle, AlertTriangle, Wrench } from 'lucide-react';
+import { ArrowLeft, Printer, Users, ClipboardList, AlertCircle, AlertTriangle, Wrench } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
@@ -79,14 +79,6 @@ export default function ReportPreviewPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button
-              onClick={() => navigate(`/reports/${id}/edit`)}
-              variant="outline"
-              className="border-zinc-300 text-zinc-700 hover:bg-zinc-50"
-            >
-              <Edit className="w-4 h-4 mr-2" />
-              Edit
-            </Button>
             <Button
               onClick={handlePrint}
               className="bg-orange-600 hover:bg-orange-700 text-white"

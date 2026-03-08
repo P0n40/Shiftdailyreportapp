@@ -70,22 +70,75 @@ export default function StatisticsPage() {
     count,
   }));
 
-  // Staff Productivity - Top 10 employees by task count
-  const staffProductivity: Record<string, number> = {};
+  // Normalize employee names to handle different name orders
+  // "HRYTSAIENKO STANISLAV" and "STANISLAV HRYTSAIENKO" become the same person
+  const normalizeEmployeeName = (name: string): string => {
+    // Convert to uppercase first
+    let normalized = name.trim().toUpperCase();
+    
+    // Handle transliteration variants (Ukrainian/Russian names)
+    const transliterationMap: Record<string, string> = {
+      'DMYTRII': 'DMITRII',
+      'DMYTRO': 'DMITRII',
+      'DMYTRY': 'DMITRII',
+      'OLEKSANDR': 'ALEKSANDR',
+      'OLEKSANDER': 'ALEKSANDR',
+      'OLEXANDR': 'ALEKSANDR',
+      'MYKOLA': 'NIKOLAY',
+      'MYKHAILO': 'MIKHAIL',
+      'PAVLO': 'PAVEL',
+      'SERHII': 'SERGEY',
+      'SERHIY': 'SERGEY',
+      'SERGII': 'SERGEY',
+      'YEVHEN': 'EVGENIY',
+      'YEVHENII': 'EVGENIY',
+      'EVHEN': 'EVGENIY',
+      'ANDRII': 'ANDREY',
+      'ANDRIY': 'ANDREY',
+      'YURII': 'YURIY',
+      'YURI': 'YURIY',
+      'VOLODYMYR': 'VLADIMIR',
+      'VADYM': 'VADIM',
+    };
+    
+    // Apply transliteration mapping
+    Object.entries(transliterationMap).forEach(([from, to]) => {
+      const regex = new RegExp(`\\b${from}\\b`, 'g');
+      normalized = normalized.replace(regex, to);
+    });
+    
+    // Split name into words, sort alphabetically, and join back
+    const words = normalized.split(/\s+/).filter(w => w.length > 0).sort();
+    return words.join(' ');
+  };
+
+  // Staff Productivity - with name normalization
+  const staffProductivity: Record<string, { normalizedName: string; originalName: string; count: number }> = {};
+  
   reports.forEach((report) => {
     report.tasks.forEach((task) => {
       task.assignedEmployees?.forEach((employee) => {
-        staffProductivity[employee] = (staffProductivity[employee] || 0) + 1;
+        const normalized = normalizeEmployeeName(employee);
+        
+        if (!staffProductivity[normalized]) {
+          staffProductivity[normalized] = {
+            normalizedName: normalized,
+            originalName: employee, // Keep first encountered version
+            count: 0,
+          };
+        }
+        
+        staffProductivity[normalized].count += 1;
       });
     });
   });
 
-  const topStaff = Object.entries(staffProductivity)
-    .sort((a, b) => b[1] - a[1])
+  const topStaff = Object.values(staffProductivity)
+    .sort((a, b) => b.count - a.count)
     .slice(0, 10)
-    .map(([name, count]) => ({
-      name: name.length > 15 ? name.substring(0, 15) + '...' : name,
-      tasks: count,
+    .map((staff) => ({
+      name: staff.normalizedName, // Display normalized name in UPPERCASE
+      tasks: staff.count,
     }));
 
   // Support requests by type
@@ -149,20 +202,13 @@ export default function StatisticsPage() {
   };
 
   // Donut Chart - Task Distribution by Staff
-  const staffTaskDistribution = Object.entries(staffProductivity)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 8) // Top 8 employees
-    .map(([name, count]) => ({
-      name: name.length > 20 ? name.substring(0, 20) + '...' : name,
-      value: count,
+  const staffTaskDistribution = Object.values(staffProductivity)
+    .sort((a, b) => b.count - a.count)
+    // Show ALL employees
+    .map((staff) => ({
+      name: staff.normalizedName, // Display normalized name in UPPERCASE
+      value: staff.count,
     }));
-
-  // Calculate "Others" category
-  const topStaffTotal = staffTaskDistribution.reduce((sum, item) => sum + item.value, 0);
-  const othersCount = totalTasks - topStaffTotal;
-  if (othersCount > 0) {
-    staffTaskDistribution.push({ name: 'Others', value: othersCount });
-  }
 
   const DONUT_COLORS = ['#3b82f6', '#06b6d4', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#ef4444', '#6366f1', '#64748b'];
 
@@ -396,7 +442,7 @@ export default function StatisticsPage() {
               </div>
               
               {/* Legend - Wider with better spacing */}
-              <div className="flex flex-col gap-3 flex-1 max-w-xl">
+              <div className="flex flex-col gap-3 flex-1 max-w-xl max-h-[500px] overflow-y-auto pr-2">
                 {staffTaskDistribution.map((entry, index) => (
                   <div key={entry.name} className="flex items-center gap-4 text-base p-2 rounded-lg hover:bg-zinc-800/50 transition-colors">
                     <div

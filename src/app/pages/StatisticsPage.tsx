@@ -242,13 +242,13 @@ export default function StatisticsPage() {
           <Card className="bg-zinc-900 border-zinc-800">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-zinc-400 flex items-center gap-2">
-                <Users className="w-4 h-4" />
-                Staff Members
+                <CheckCircle2 className="w-4 h-4" />
+                Tasks Completed
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-white">{totalStaff}</div>
-              <p className="text-xs text-zinc-500 mt-1">Total recorded</p>
+              <div className="text-3xl font-bold text-white">{totalTasks}</div>
+              <p className="text-xs text-zinc-500 mt-1">Successfully finished</p>
             </CardContent>
           </Card>
 
@@ -509,7 +509,7 @@ export default function StatisticsPage() {
                     <CheckCircle2 className="w-6 h-6 text-blue-500" />
                   </div>
                   <div>
-                    <p className="text-sm text-zinc-400">Total Tasks Completed</p>
+                    <p className="text-sm text-zinc-400">Tasks Completed</p>
                     <p className="text-2xl font-bold text-white">{totalTasks}</p>
                   </div>
                 </div>

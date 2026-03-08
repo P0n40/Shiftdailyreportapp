@@ -798,8 +798,12 @@ export default function ReportEditorPage() {
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="bg-[#353535] border-[#454545] text-white"
+                  disabled={!!id}
+                  className={`bg-[#353535] border-[#454545] text-white ${id ? 'opacity-60 cursor-not-allowed' : ''}`}
                 />
+                {id && (
+                  <p className="text-xs text-zinc-500 italic">Дата рапорту не може бути змінена після створення</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="location" className="text-zinc-300">Warehouse / Location *</Label>

@@ -13,10 +13,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
-  Area,
-  AreaChart,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { FileText, Users, AlertTriangle, Wrench, TrendingUp, CheckCircle2 } from 'lucide-react';
@@ -61,22 +57,6 @@ export default function StatisticsPage() {
   // Average tasks per report
   const avgTasksPerReport = totalReports > 0 ? (totalTasks / totalReports).toFixed(1) : 0;
 
-  // Reports by shift type
-  const shiftData = [
-    {
-      name: 'Day Shift',
-      count: reports.filter((r) => r.shift === 'day').length,
-    },
-    {
-      name: 'Night Shift',
-      count: reports.filter((r) => r.shift === 'night').length,
-    },
-    {
-      name: 'Day-Night',
-      count: reports.filter((r) => r.shift === 'day-night').length,
-    },
-  ];
-
   // Tasks by category
   const tasksByCategory: Record<string, number> = {};
   reports.forEach((report) => {
@@ -89,34 +69,6 @@ export default function StatisticsPage() {
     name,
     count,
   }));
-
-  // Anomalies by severity
-  const anomaliesBySeverity: Record<string, number> = {
-    critical: 0,
-    warning: 0,
-    info: 0,
-    note: 0,
-  };
-  reports.forEach((report) => {
-    report.anomalies.forEach((anomaly) => {
-      anomaliesBySeverity[anomaly.severity] = (anomaliesBySeverity[anomaly.severity] || 0) + 1;
-    });
-  });
-
-  const severityData = Object.entries(anomaliesBySeverity).map(([name, value]) => ({
-    name: name.charAt(0).toUpperCase() + name.slice(1),
-    value,
-  }));
-
-  // Reports timeline (last 30 days)
-  const timelineData = reports
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(-30)
-    .map((report) => ({
-      date: new Date(report.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      incidents: report.incidents.length,
-      anomalies: report.anomalies.length,
-    }));
 
   // Staff Productivity - Top 10 employees by task count
   const staffProductivity: Record<string, number> = {};
@@ -149,27 +101,70 @@ export default function StatisticsPage() {
     count,
   }));
 
-  // Reports over time with trend (last 60 days)
-  const reportsOverTime = reports
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(-60)
-    .reduce((acc: any[], report) => {
-      const date = new Date(report.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const existing = acc.find((item) => item.date === date);
-      if (existing) {
-        existing.reports += 1;
-        existing.tasks += report.tasks.length;
-      } else {
-        acc.push({
-          date,
-          reports: 1,
-          tasks: report.tasks.length,
-        });
-      }
-      return acc;
-    }, []);
+  // Heat Map Calendar Data - Last 60 days
+  const getHeatMapData = () => {
+    const today = new Date();
+    const daysToShow = 60;
+    const heatMapData: any[] = [];
+    
+    // Create map of incidents by date
+    const incidentsByDate: Record<string, number> = {};
+    reports.forEach((report) => {
+      const dateKey = report.date;
+      incidentsByDate[dateKey] = (incidentsByDate[dateKey] || 0) + report.incidents.length;
+    });
 
-  const COLORS = ['#ea580c', '#fb923c', '#fdba74', '#fed7aa', '#3b82f6', '#06b6d4'];
+    // Find max incidents for color scaling
+    const maxIncidents = Math.max(...Object.values(incidentsByDate), 1);
+
+    // Generate last 60 days
+    for (let i = daysToShow - 1; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      const incidents = incidentsByDate[dateStr] || 0;
+      
+      heatMapData.push({
+        date: dateStr,
+        displayDate: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        incidents,
+        intensity: incidents / maxIncidents, // 0-1 scale
+        dayOfWeek: date.getDay(),
+      });
+    }
+
+    return heatMapData;
+  };
+
+  const heatMapData = getHeatMapData();
+
+  // Get color for heat map cell
+  const getHeatMapColor = (intensity: number) => {
+    if (intensity === 0) return '#18181b'; // No data - dark
+    if (intensity < 0.2) return '#166534'; // Very low - dark green
+    if (intensity < 0.4) return '#16a34a'; // Low - green
+    if (intensity < 0.6) return '#eab308'; // Medium - yellow
+    if (intensity < 0.8) return '#f97316'; // High - orange
+    return '#dc2626'; // Very high - red
+  };
+
+  // Donut Chart - Task Distribution by Staff
+  const staffTaskDistribution = Object.entries(staffProductivity)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8) // Top 8 employees
+    .map(([name, count]) => ({
+      name: name.length > 20 ? name.substring(0, 20) + '...' : name,
+      value: count,
+    }));
+
+  // Calculate "Others" category
+  const topStaffTotal = staffTaskDistribution.reduce((sum, item) => sum + item.value, 0);
+  const othersCount = totalTasks - topStaffTotal;
+  if (othersCount > 0) {
+    staffTaskDistribution.push({ name: 'Others', value: othersCount });
+  }
+
+  const DONUT_COLORS = ['#3b82f6', '#06b6d4', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#ef4444', '#6366f1', '#64748b'];
 
   return (
     <div className="min-h-screen bg-zinc-950">
@@ -251,149 +246,174 @@ export default function StatisticsPage() {
           </Card>
         </div>
 
-        {/* Charts Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* Reports by Shift Type */}
-          <Card className="bg-zinc-900 border-zinc-800">
-            <CardHeader>
-              <CardTitle className="text-white">Reports by Shift Type</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={shiftData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                  <XAxis dataKey="name" stroke="#a1a1aa" />
-                  <YAxis stroke="#a1a1aa" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#18181b',
-                      border: '1px solid #27272a',
-                      borderRadius: '8px',
-                      color: '#fff',
+        {/* Heat Map Calendar - Incidents Activity */}
+        <Card className="bg-zinc-900 border-zinc-800 mb-6">
+          <CardHeader>
+            <CardTitle className="text-white">Incidents Heat Map - Last 60 Days</CardTitle>
+            <p className="text-sm text-zinc-400 mt-1">Visual calendar showing incident activity by day</p>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <div className="inline-grid grid-cols-[repeat(13,minmax(0,1fr))] gap-2 min-w-full">
+                {/* Week labels */}
+                {Array.from({ length: 13 }).map((_, weekIndex) => {
+                  const weekStart = heatMapData[weekIndex * 7];
+                  return weekStart ? (
+                    <div key={`week-${weekIndex}`} className="text-xs text-zinc-500 text-center mb-1">
+                      {new Date(weekStart.date).toLocaleDateString('en-US', { month: 'short' })}
+                    </div>
+                  ) : (
+                    <div key={`week-${weekIndex}`} />
+                  );
+                })}
+                
+                {/* Days grid */}
+                {heatMapData.map((day) => (
+                  <div
+                    key={day.date}
+                    className="aspect-square rounded-sm transition-all hover:ring-2 hover:ring-white/50 cursor-pointer group relative"
+                    style={{
+                      backgroundColor: getHeatMapColor(day.intensity),
                     }}
-                  />
-                  <Bar dataKey="count" fill="#ea580c" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* Tasks by Category */}
-          <Card className="bg-zinc-900 border-zinc-800">
-            <CardHeader>
-              <CardTitle className="text-white">Tasks by Category</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={categoryData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                  <XAxis dataKey="name" stroke="#a1a1aa" angle={-45} textAnchor="end" height={80} />
-                  <YAxis stroke="#a1a1aa" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#18181b',
-                      border: '1px solid #27272a',
-                      borderRadius: '8px',
-                      color: '#fff',
-                    }}
-                  />
-                  <Bar dataKey="count" fill="#fb923c" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* Anomalies by Severity */}
-          <Card className="bg-zinc-900 border-zinc-800">
-            <CardHeader>
-              <CardTitle className="text-white">Anomalies by Severity</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={severityData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={100}
-                    fill="#8884d8"
-                    dataKey="value"
+                    title={`${day.displayDate}: ${day.incidents} incidents`}
                   >
-                    {severityData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#18181b',
-                      border: '1px solid #27272a',
-                      borderRadius: '8px',
-                      color: '#fff',
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+                    {/* Tooltip on hover */}
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-zinc-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 border border-zinc-700">
+                      <div className="font-semibold">{day.displayDate}</div>
+                      <div className="text-zinc-400">{day.incidents} incidents</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Legend */}
+              <div className="flex items-center gap-4 mt-6 justify-center">
+                <span className="text-xs text-zinc-400">Less</span>
+                <div className="flex gap-1">
+                  <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: '#18181b' }} />
+                  <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: '#166534' }} />
+                  <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: '#16a34a' }} />
+                  <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: '#eab308' }} />
+                  <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: '#f97316' }} />
+                  <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: '#dc2626' }} />
+                </div>
+                <span className="text-xs text-zinc-400">More</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* Timeline */}
-          <Card className="bg-zinc-900 border-zinc-800">
-            <CardHeader>
-              <CardTitle className="text-white">Incidents & Anomalies Timeline</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={timelineData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                  <XAxis dataKey="date" stroke="#a1a1aa" />
-                  <YAxis stroke="#a1a1aa" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#18181b',
-                      border: '1px solid #27272a',
-                      borderRadius: '8px',
-                      color: '#fff',
-                    }}
-                  />
-                  <Legend />
-                  <Line type="monotone" dataKey="incidents" stroke="#ef4444" strokeWidth={2} />
-                  <Line type="monotone" dataKey="anomalies" stroke="#eab308" strokeWidth={2} />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Staff Productivity - Full Width */}
+        <Card className="bg-zinc-900 border-zinc-800 mb-6">
+          <CardHeader>
+            <CardTitle className="text-white">Top 10 Staff Productivity</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={topStaff}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                <XAxis dataKey="name" stroke="#a1a1aa" />
+                <YAxis stroke="#a1a1aa" />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#18181b',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: '#fff',
+                  }}
+                />
+                <Bar dataKey="tasks" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
+        {/* Tasks by Category - Full Width */}
+        <Card className="bg-zinc-900 border-zinc-800 mb-6">
+          <CardHeader>
+            <CardTitle className="text-white">Tasks by Category</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={categoryData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                <XAxis dataKey="name" stroke="#a1a1aa" angle={-45} textAnchor="end" height={80} />
+                <YAxis stroke="#a1a1aa" />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#18181b',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: '#fff',
+                  }}
+                />
+                <Bar dataKey="count" fill="#fb923c" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Task Distribution by Staff - Donut Chart */}
+        <Card className="bg-zinc-900 border-zinc-800 mb-6">
+          <CardHeader>
+            <CardTitle className="text-white">Task Distribution by Staff</CardTitle>
+            <p className="text-sm text-zinc-400 mt-1">Workload balance across top employees</p>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col lg:flex-row items-center lg:items-start justify-center gap-12">
+              {/* Donut Chart - Reduced size */}
+              <div className="flex-shrink-0">
+                <ResponsiveContainer width={320} height={320}>
+                  <PieChart>
+                    <Pie
+                      data={staffTaskDistribution}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={70}
+                      outerRadius={110}
+                      fill="#8884d8"
+                      paddingAngle={2}
+                      dataKey="value"
+                      label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                      labelLine={false}
+                    >
+                      {staffTaskDistribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={DONUT_COLORS[index % DONUT_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#18181b',
+                        border: '1px solid #27272a',
+                        borderRadius: '8px',
+                        color: '#fff',
+                      }}
+                      itemStyle={{ color: '#fff' }}
+                      formatter={(value: any) => [`${value} tasks`, 'Tasks']}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              
+              {/* Legend - Wider with better spacing */}
+              <div className="flex flex-col gap-3 flex-1 max-w-xl">
+                {staffTaskDistribution.map((entry, index) => (
+                  <div key={entry.name} className="flex items-center gap-4 text-base p-2 rounded-lg hover:bg-zinc-800/50 transition-colors">
+                    <div
+                      className="w-5 h-5 rounded flex-shrink-0"
+                      style={{ backgroundColor: DONUT_COLORS[index % DONUT_COLORS.length] }}
+                    />
+                    <span className="text-zinc-200 font-medium flex-1 min-w-0">{entry.name}</span>
+                    <span className="text-zinc-400 font-semibold tabular-nums">{entry.value} tasks</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Support Requests by Type and Performance Metrics */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* Staff Productivity */}
-          <Card className="bg-zinc-900 border-zinc-800">
-            <CardHeader>
-              <CardTitle className="text-white">Top 10 Staff Productivity</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={topStaff}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                  <XAxis dataKey="name" stroke="#a1a1aa" />
-                  <YAxis stroke="#a1a1aa" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#18181b',
-                      border: '1px solid #27272a',
-                      borderRadius: '8px',
-                      color: '#fff',
-                    }}
-                  />
-                  <Bar dataKey="tasks" fill="#3b82f6" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
           {/* Support Requests by Type */}
           <Card className="bg-zinc-900 border-zinc-800">
             <CardHeader>
@@ -418,37 +438,8 @@ export default function StatisticsPage() {
               </ResponsiveContainer>
             </CardContent>
           </Card>
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Reports Over Time */}
-          <Card className="bg-zinc-900 border-zinc-800">
-            <CardHeader>
-              <CardTitle className="text-white">Reports Over Time</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={reportsOverTime}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                  <XAxis dataKey="date" stroke="#a1a1aa" />
-                  <YAxis stroke="#a1a1aa" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#18181b',
-                      border: '1px solid #27272a',
-                      borderRadius: '8px',
-                      color: '#fff',
-                    }}
-                  />
-                  <Legend />
-                  <Line type="monotone" dataKey="reports" stroke="#ea580c" strokeWidth={2} />
-                  <Line type="monotone" dataKey="tasks" stroke="#fb923c" strokeWidth={2} />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* Average Tasks Per Report Card */}
+          {/* Performance Metrics */}
           <Card className="bg-zinc-900 border-zinc-800">
             <CardHeader>
               <CardTitle className="text-white">Performance Metrics</CardTitle>

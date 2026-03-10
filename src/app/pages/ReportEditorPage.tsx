@@ -7,7 +7,8 @@ import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { ArrowLeft, Plus, Trash2, FileText, GripVertical, Save } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
+import { ArrowLeft, Plus, Trash2, FileText, GripVertical, Save, Lock, Unlock } from 'lucide-react';
 import { toast } from 'sonner';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
@@ -536,6 +537,11 @@ export default function ReportEditorPage() {
   const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
   const [supportIssues, setSupportIssues] = useState<SupportIssue[]>([]);
 
+  // Admin password state for unlocking date editing
+  const [dateUnlocked, setDateUnlocked] = useState(false);
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
+
   useEffect(() => {
     // Load report if editing
     if (id) {
@@ -733,6 +739,20 @@ export default function ReportEditorPage() {
     setSupportIssues(updated);
   };
 
+  // Admin password handler
+  const handlePasswordSubmit = () => {
+    const ADMIN_PASSWORD = 'Den4ik009@';
+    if (adminPassword === ADMIN_PASSWORD) {
+      setDateUnlocked(!dateUnlocked);
+      setShowPasswordDialog(false);
+      setAdminPassword('');
+      toast.success(dateUnlocked ? 'Date locked' : 'Date unlocked - you can now edit the date');
+    } else {
+      toast.error('Incorrect admin password');
+      setAdminPassword('');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#1f1f1f] flex items-center justify-center">
@@ -798,11 +818,35 @@ export default function ReportEditorPage() {
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  disabled={!!id}
-                  className={`bg-[#353535] border-[#454545] text-white ${id ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  disabled={!dateUnlocked}
+                  className={`bg-[#353535] border-[#454545] text-white ${!dateUnlocked ? 'opacity-60 cursor-not-allowed' : ''}`}
                 />
-                {id && (
-                  <p className="text-xs text-zinc-500 italic">Дата рапорту не може бути змінена після створення</p>
+                {!dateUnlocked && (
+                  <p className="text-xs text-zinc-500 italic">Date field is locked. Click "Unlock Date" button to edit.</p>
+                )}
+                {!dateUnlocked && (
+                  <Button
+                    onClick={() => setShowPasswordDialog(true)}
+                    size="sm"
+                    className="bg-orange-600 hover:bg-orange-700 text-white mt-2"
+                  >
+                    <Lock className="w-4 h-4 mr-1" />
+                    Unlock Date
+                  </Button>
+                )}
+                {dateUnlocked && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-xs text-green-500 italic">✓ Date field unlocked - you can edit</p>
+                    <Button
+                      onClick={() => setShowPasswordDialog(true)}
+                      size="sm"
+                      variant="outline"
+                      className="bg-transparent border-green-600 text-green-500 hover:bg-green-600 hover:text-white"
+                    >
+                      <Unlock className="w-3 h-3 mr-1" />
+                      Lock
+                    </Button>
+                  </div>
                 )}
               </div>
               <div className="space-y-2">
@@ -1019,6 +1063,56 @@ export default function ReportEditorPage() {
           </Button>
         </div>
       </main>
+
+      {/* Admin Password Dialog */}
+      <AlertDialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+        <AlertDialogContent className="bg-[#2b2b2b] border-[#3a3a3a]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">
+              {dateUnlocked ? '🔓 Lock Date Field' : '🔒 Unlock Date Field'}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-400">
+              {dateUnlocked 
+                ? 'Enter admin password to lock the date field.' 
+                : 'Enter admin password to unlock and edit the date field.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="adminPassword" className="text-zinc-300">Admin Password</Label>
+            <Input
+              id="adminPassword"
+              type="password"
+              value={adminPassword}
+              onChange={(e) => setAdminPassword(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handlePasswordSubmit();
+                }
+              }}
+              placeholder="Enter password..."
+              className="bg-[#353535] border-[#454545] text-white"
+              autoFocus
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              onClick={() => {
+                setShowPasswordDialog(false);
+                setAdminPassword('');
+              }}
+              className="bg-[#353535] border-[#454545] text-zinc-300 hover:bg-[#3f3f3f] hover:text-white"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handlePasswordSubmit}
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+            >
+              {dateUnlocked ? 'Lock' : 'Unlock'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
